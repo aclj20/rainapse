@@ -3,6 +3,7 @@ import { BottomNavigation } from './components/BottomNavigation';
 import { HomeSection } from './components/HomeSection';
 import { ScheduleSection } from './components/ScheduleSection';
 import { ActivityDetailSection } from './components/ActivityDetailSection';
+import { MapsSection } from './components/MapsSection';
 import { ProfileSection } from './components/ProfileSection';
 import { OnboardingChatbot, UserProfile } from './components/OnboardingChatbot';
 import { Activity } from './components/ActivityCard';
@@ -55,17 +56,10 @@ export default function App() {
             onBack={handleBackToSchedule}
           />
         ) : null;
+      case 'maps':
+        return <MapsSection />;
       case 'profile':
         return <ProfileSection userProfile={userProfile} />;
-      case 'settings':
-        return (
-          <div className="flex flex-col items-center justify-center h-full text-center px-6">
-            <h1 className="text-2xl mb-4">Configuración</h1>
-            <p className="text-muted-foreground">
-              Sección de configuración en desarrollo
-            </p>
-          </div>
-        );
       default:
         return <HomeSection userProfile={userProfile} />;
     }

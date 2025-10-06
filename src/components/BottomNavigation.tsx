@@ -1,4 +1,4 @@
-import { Home, Calendar, User, Settings } from 'lucide-react';
+import { Home, Calendar, Map, User } from 'lucide-react';
 
 interface BottomNavigationProps {
   activeSection: string;
@@ -7,10 +7,10 @@ interface BottomNavigationProps {
 
 export function BottomNavigation({ activeSection, onSectionChange }: BottomNavigationProps) {
   const navItems = [
-    { id: 'home', icon: Home, label: 'Inicio' },
-    { id: 'schedule', icon: Calendar, label: 'Horario' },
-    { id: 'profile', icon: User, label: 'Perfil' },
-    { id: 'settings', icon: Settings, label: 'Config' },
+    { id: 'home', icon: Home, label: 'Home' },
+    { id: 'schedule', icon: Calendar, label: 'Schedule' },
+    { id: 'maps', icon: Map, label: 'Maps' },
+    { id: 'profile', icon: User, label: 'Profile' },
   ];
 
   return (

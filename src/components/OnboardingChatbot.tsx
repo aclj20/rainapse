@@ -1,381 +1,513 @@
-import { useState, useEffect, useRef } from 'react';
-import { Send, Bot, User, MessageCircle, Mic, MicOff } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { MessageCircle, X, Send, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
-import { Avatar, AvatarFallback } from './ui/avatar';
-import { Switch } from './ui/switch';
 import { Label } from './ui/label';
+import { Badge } from './ui/badge';
+import { Progress } from './ui/progress';
+import { ImageWithFallback } from './figma/ImageWithFallback';
+import bearAvatar from 'figma:asset/5daf49f525847c138e0d204eab1450f954ee921f.png';
 
 export interface UserProfile {
   name: string;
-  age: number;
-  weight: number;
-  height: number;
-  diseases: string[];
-  activityLevel: string;
-  goals: string[];
+  city: string;
+  healthConditions: string[];
+  medications: string;
+  climateAffects: string;
+  outdoorActivities: string[];
+  climateInfluence: string;
+  alertTypes: string[];
+  notificationFrequency: string;
+  favoriteClimate: string;
 }
 
 interface OnboardingChatbotProps {
   onComplete: (profile: UserProfile) => void;
 }
 
-interface Message {
+interface QuestionConfig {
   id: string;
-  text: string;
-  sender: 'bot' | 'user';
-  timestamp: Date;
+  title: string;
+  description: string;
+  field: keyof UserProfile;
+  type: 'text' | 'select' | 'multiselect';
+  options?: string[];
+  section: string;
 }
 
-export function OnboardingChatbot({ onComplete }: OnboardingChatbotProps) {
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [input, setInput] = useState('');
-  const [currentStep, setCurrentStep] = useState(0);
-  const [userProfile, setUserProfile] = useState<Partial<UserProfile>>({});
-  const [isTyping, setIsTyping] = useState(false);
-  const [isVoiceMode, setIsVoiceMode] = useState(false);
-  const [isListening, setIsListening] = useState(false);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+const QUESTIONS: QuestionConfig[] = [
+  // 1️⃣ BASIC PROFILE
+  {
+    id: 'name',
+    title: 'What is your name?',
+    description: 'Helps us personalize your experience in RAINUP',
+    field: 'name',
+    type: 'text',
+    section: 'Basic Profile'
+  },
+  {
+    id: 'city',
+    title: 'Which city do you live in?',
+    description: 'To provide you with accurate weather information for your location',
+    field: 'city',
+    type: 'text',
+    section: 'Basic Profile'
+  },
+  
+  // 2️⃣ HEALTH AND MEDICAL CONDITIONS
+  {
+    id: 'health_conditions',
+    title: 'Health conditions affected by weather',
+    description: 'Select all conditions that apply to you',
+    field: 'healthConditions',
+    type: 'multiselect',
+    section: 'Health',
+    options: [
+      'None',
+      'Allergies (pollen, dust, mold)',
+      'Asthma or COPD',
+      'Cardiovascular problems',
+      'Skin problems',
+      'Joint or muscle pain',
+      'Sensitivity to heat or cold'
+    ]
+  },
+  {
+    id: 'medications',
+    title: 'Do you take weather-sensitive medications?',
+    description: 'Medications that increase sensitivity to sun, heat or cold',
+    field: 'medications',
+    type: 'select',
+    section: 'Health',
+    options: ['Yes', 'No', 'Not sure']
+  },
+  {
+    id: 'climate_affects',
+    title: 'What type of weather affects you most?',
+    description: 'Select the type of weather that has the most impact on your wellbeing',
+    field: 'climateAffects',
+    type: 'select',
+    section: 'Health',
+    options: [
+      'Extreme heat ☀️',
+      'High humidity or rain 🌧️',
+      'Strong wind or dust 💨',
+      'Intense cold ❄️',
+      'Pollution or dry air 🌫️'
+    ]
+  },
+  
+  // 3️⃣ LIFESTYLE AND ACTIVITIES
+  {
+    id: 'outdoor_activities',
+    title: 'Outdoor activities you do',
+    description: 'Select all activities you do frequently',
+    field: 'outdoorActivities',
+    type: 'multiselect',
+    section: 'Lifestyle',
+    options: [
+      'None or very few',
+      'Physical exercise or sports',
+      'Gardening or agriculture',
+      'Walks or hiking',
+      'Outdoor work',
+      'Social or recreational events'
+    ]
+  },
+  {
+    id: 'climate_influence',
+    title: 'Weather influence on your activities',
+    description: 'How much do you adapt your plans according to weather conditions?',
+    field: 'climateInfluence',
+    type: 'select',
+    section: 'Lifestyle',
+    options: [
+      'A lot, I usually adapt my plans',
+      'Sometimes, depending on the type of activity',
+      'Little or none'
+    ]
+  },
+  
+  // 4️⃣ ALERT PREFERENCES
+  {
+    id: 'alert_types',
+    title: 'Types of alerts you want to receive',
+    description: 'Select the alerts that are most useful to you',
+    field: 'alertTypes',
+    type: 'multiselect',
+    section: 'Alerts',
+    options: [
+      'Riesgos para la salud según mi perfil',
+      'Recomendaciones para planificar actividades',
+      'Alertas sobre radiación UV y calidad del aire',
+      'Sugerencias de prevención o cuidado diario'
+    ]
+  },
+  {
+    id: 'notification_frequency',
+    title: 'Frecuencia de notificaciones',
+    description: '¿Con qué frecuencia prefieres recibir actualizaciones?',
+    field: 'notificationFrequency',
+    type: 'select',
+    section: 'Alertas',
+    options: [
+      'Solo cuando haya alertas importantes',
+      'Cada mañana con el pronóstico personalizado',
+      'Semanalmente con un resumen y sugerencias'
+    ]
+  },
+  
+  // 5️⃣ PERFIL CLIMÁTICO EMOCIONAL
+  {
+    id: 'favorite_climate',
+    title: 'Tu clima favorito',
+    description: '¿Qué tipo de clima te hace sentir más cómodo y feliz?',
+    field: 'favoriteClimate',
+    type: 'select',
+    section: 'Perfil Emocional',
+    options: [
+      'Soleado y cálido ☀️',
+      'Fresco o lluvioso 🌧️',
+      'Ventoso y nublado 🌬️',
+      'Frío y seco ❄️'
+    ]
+  }
+];
 
-  const questions = [
-    {
-      id: 'welcome',
-      text: '¡Hola! 👋 Soy tu asistente personal. Me encantaría conocerte mejor para poder ayudarte de la mejor manera. ¿Cuál es tu nombre?',
-      field: 'name',
-      type: 'text'
-    },
-    {
-      id: 'age',
-      text: 'Encantado de conocerte, {name}! 😊 ¿Qué edad tienes?',
-      field: 'age',
-      type: 'number'
-    },
-    {
-      id: 'weight',
-      text: 'Perfecto. ¿Cuál es tu peso actual en kg? (Esta información me ayuda a personalizar mejor tus recomendaciones)',
-      field: 'weight',
-      type: 'number'
-    },
-    {
-      id: 'height',
-      text: 'Gracias. ¿Y tu altura en cm?',
-      field: 'height',
-      type: 'number'
-    },
-    {
-      id: 'diseases',
-      text: '¿Tienes alguna condición médica o enfermedad que deba tener en cuenta? Si no tienes ninguna, simplemente escribe "ninguna".',
-      field: 'diseases',
-      type: 'text'
-    },
-    {
-      id: 'activity',
-      text: '¿Cómo describirías tu nivel de actividad física actual? (sedentario, ligero, moderado, activo, muy activo)',
-      field: 'activityLevel',
-      type: 'text'
-    },
-    {
-      id: 'goals',
-      text: 'Por último, ¿cuáles son tus principales objetivos? Por ejemplo: perder peso, ganar músculo, mantenerse saludable, etc.',
-      field: 'goals',
-      type: 'text'
-    }
+// Componente del chatbot flotante
+function FloatingChatbot() {
+  const [isOpen, setIsOpen] = useState(false);
+  const [message, setMessage] = useState('');
+
+  const tips = [
+    "¡Hola! 👋 Estoy aquí para ayudarte durante el proceso",
+    "Tómate tu tiempo para responder cada pregunta",
+    "Todas tus respuestas nos ayudarán a personalizar tu experiencia",
+    "Si tienes dudas sobre alguna pregunta, ¡pregúntame!",
+    "Tu privacidad es importante, mantenemos tus datos seguros 🔒"
   ];
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
-
   useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
+    if (isOpen && !message) {
+      const randomTip = tips[Math.floor(Math.random() * tips.length)];
+      setMessage(randomTip);
+    }
+  }, [isOpen]);
 
-  useEffect(() => {
-    // Mensaje inicial
-    addBotMessage(questions[0].text);
-  }, []);
-
-  const addBotMessage = (text: string) => {
-    setIsTyping(true);
-    setTimeout(() => {
-      const formattedText = text.replace('{name}', userProfile.name || '');
-      setMessages(prev => [...prev, {
-        id: Date.now().toString(),
-        text: formattedText,
-        sender: 'bot',
-        timestamp: new Date()
-      }]);
-      setIsTyping(false);
+  return (
+    <div className="fixed bottom-6 right-6 z-50">
+      {isOpen && (
+        <div className="mb-4 mr-2 max-w-xs">
+          <div className="glass-effect rounded-2xl p-4 shadow-lg">
+            <div className="flex items-start gap-3">
+              <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
+                🐻
+              </div>
+              <div className="flex-1">
+                <h4 className="text-sm font-medium mb-1">Asistente RAINAPSE</h4>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  {message}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       
-      // Si está en modo voz, reproducir texto automáticamente
-      if (isVoiceMode && 'speechSynthesis' in window) {
-        setTimeout(() => {
-          const utterance = new SpeechSynthesisUtterance(formattedText);
-          utterance.lang = 'es-ES';
-          utterance.rate = 0.8;
-          utterance.pitch = 1.1;
-          utterance.volume = 0.9;
-          speechSynthesis.speak(utterance);
-          
-          // Después de que termine de hablar, activar automáticamente el micrófono
-          utterance.onend = () => {
-            if (isVoiceMode && currentStep < questions.length - 1) {
-              setTimeout(startListening, 500);
-            }
-          };
-        }, 500);
-      }
-    }, 1000);
-  };
+      <Button
+        onClick={() => setIsOpen(!isOpen)}
+        className="rounded-full w-14 h-14 shadow-lg"
+        size="icon"
+      >
+        {isOpen ? <X size={20} /> : <MessageCircle size={20} />}
+      </Button>
+    </div>
+  );
+}
 
-  const addUserMessage = (text: string) => {
-    setMessages(prev => [...prev, {
-      id: Date.now().toString(),
-      text,
-      sender: 'user',
-      timestamp: new Date()
-    }]);
-  };
+// Vista de bienvenida
+function WelcomeScreen({ onStart }: { onStart: () => void }) {
+  return (
+    <div className="h-screen weather-gradient flex flex-col items-center justify-center px-6">
+      <div className="text-center space-y-8 max-w-md">
+        {/* Logo - Oso */}
+        <div className="flex justify-center">
+          <div className="w-48 h-48 flex items-center justify-center">
+            <img
+              src={bearAvatar}
+              alt="RAINAPSE Bear Mascot"
+              className="w-full h-full object-contain drop-shadow-2xl"
+            />
+          </div>
+        </div>
 
-  const handleSubmit = () => {
-    if (!input.trim()) return;
+        {/* Título */}
+        <div className="space-y-4">
+          <h1 className="text-4xl font-medium tracking-tight">RAINAPSE</h1>
+          <p className="text-lg text-muted-foreground leading-relaxed">
+            Tu asistente climático inteligente que te ayuda a planificar cada día según el clima
+          </p>
+        </div>
 
-    const currentQuestion = questions[currentStep];
-    addUserMessage(input);
+        {/* Características */}
+        <div className="space-y-3 text-left">
+          <div className="flex items-center gap-3 text-sm">
+            <div className="w-2 h-2 rounded-full bg-primary"></div>
+            <span>Recomendaciones personalizadas según tu salud</span>
+          </div>
+          <div className="flex items-center gap-3 text-sm">
+            <div className="w-2 h-2 rounded-full bg-primary"></div>
+            <span>Alertas inteligentes para cuidar tu bienestar</span>
+          </div>
+          <div className="flex items-center gap-3 text-sm">
+            <div className="w-2 h-2 rounded-full bg-primary"></div>
+            <span>Planificación de actividades basada en el clima</span>
+          </div>
+        </div>
 
-    // Procesar la respuesta
-    let processedValue: any = input.trim();
+        {/* Botón de empezar */}
+        <Button 
+          onClick={onStart}
+          className="w-full rounded-full h-12 text-base"
+          size="lg"
+        >
+          Empezar
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+// Vista de encuesta
+function SurveyScreen({ onComplete }: { onComplete: (profile: UserProfile) => void }) {
+  const [currentStep, setCurrentStep] = useState(0);
+  const [answers, setAnswers] = useState<Partial<UserProfile>>({});
+  const [textInput, setTextInput] = useState('');
+  const [selectedOptions, setSelectedOptions] = useState<string[]>([]);
+
+  const currentQuestion = QUESTIONS[currentStep];
+  const progress = ((currentStep + 1) / QUESTIONS.length) * 100;
+
+  const handleNext = () => {
+    let value: any;
     
-    if (currentQuestion.type === 'number') {
-      processedValue = parseInt(input);
-      if (isNaN(processedValue)) {
-        setTimeout(() => {
-          addBotMessage('Por favor, ingresa un número válido.');
-        }, 500);
-        setInput('');
-        return;
-      }
-    }
-
-    // Guardar en el perfil
-    const updatedProfile = { ...userProfile };
-    
-    if (currentQuestion.field === 'diseases') {
-      updatedProfile.diseases = processedValue.toLowerCase() === 'ninguna' ? [] : [processedValue];
-    } else if (currentQuestion.field === 'goals') {
-      updatedProfile.goals = [processedValue];
+    if (currentQuestion.type === 'text') {
+      if (!textInput.trim()) return;
+      value = textInput.trim();
+    } else if (currentQuestion.type === 'multiselect') {
+      if (selectedOptions.length === 0) return;
+      value = selectedOptions.includes('Ninguna') ? [] : selectedOptions;
     } else {
-      (updatedProfile as any)[currentQuestion.field] = processedValue;
+      if (selectedOptions.length === 0) return;
+      value = selectedOptions[0];
     }
-    
-    setUserProfile(updatedProfile);
-    setInput('');
 
-    // Siguiente pregunta o finalizar
-    if (currentStep < questions.length - 1) {
+    const newAnswers = {
+      ...answers,
+      [currentQuestion.field]: value
+    };
+    
+    setAnswers(newAnswers);
+    setTextInput('');
+    setSelectedOptions([]);
+
+    if (currentStep < QUESTIONS.length - 1) {
       setCurrentStep(currentStep + 1);
-      setTimeout(() => {
-        addBotMessage(questions[currentStep + 1].text);
-      }, 1500);
     } else {
-      // Onboarding completado
-      setTimeout(() => {
-        addBotMessage(`¡Perfecto, ${updatedProfile.name}! 🎉 Ya tengo toda la información que necesito. Ahora voy a personalizar tu experiencia. ¡Comencemos!`);
-        setTimeout(() => {
-          onComplete(updatedProfile as UserProfile);
-        }, 3000);
-      }, 1500);
+      // Completar encuesta
+      const finalProfile: UserProfile = {
+        name: newAnswers.name || '',
+        city: newAnswers.city || '',
+        healthConditions: newAnswers.healthConditions || [],
+        medications: newAnswers.medications || '',
+        climateAffects: newAnswers.climateAffects || '',
+        outdoorActivities: newAnswers.outdoorActivities || [],
+        climateInfluence: newAnswers.climateInfluence || '',
+        alertTypes: newAnswers.alertTypes || [],
+        notificationFrequency: newAnswers.notificationFrequency || '',
+        favoriteClimate: newAnswers.favoriteClimate || ''
+      };
+      onComplete(finalProfile);
     }
   };
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      handleSubmit();
+  const handlePrevious = () => {
+    if (currentStep > 0) {
+      setCurrentStep(currentStep - 1);
+      // Restaurar respuesta anterior
+      const previousValue = answers[QUESTIONS[currentStep - 1].field];
+      if (typeof previousValue === 'string') {
+        if (QUESTIONS[currentStep - 1].type === 'text') {
+          setTextInput(previousValue);
+        } else {
+          setSelectedOptions([previousValue]);
+        }
+      } else if (Array.isArray(previousValue)) {
+        setSelectedOptions(previousValue);
+      }
     }
   };
 
-  const startListening = () => {
-    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-      const SpeechRecognition = window.webkitSpeechRecognition || window.SpeechRecognition;
-      const recognition = new SpeechRecognition();
-      
-      recognition.lang = 'es-ES';
-      recognition.continuous = false;
-      recognition.interimResults = false;
-      
-      recognition.onstart = () => {
-        setIsListening(true);
-      };
-      
-      recognition.onresult = (event) => {
-        const transcript = event.results[0][0].transcript;
-        setInput(transcript);
-        setIsListening(false);
-      };
-      
-      recognition.onerror = () => {
-        setIsListening(false);
-      };
-      
-      recognition.onend = () => {
-        setIsListening(false);
-      };
-      
-      recognition.start();
+  const handleOptionToggle = (option: string) => {
+    if (currentQuestion.type === 'multiselect') {
+      setSelectedOptions(prev => {
+        if (option === 'Ninguna') {
+          return ['Ninguna'];
+        }
+        
+        const newSelected = prev.includes(option) 
+          ? prev.filter(o => o !== option)
+          : [...prev.filter(o => o !== 'Ninguna'), option];
+        
+        return newSelected;
+      });
     } else {
-      console.log('Speech recognition not supported');
+      setSelectedOptions([option]);
     }
+  };
+
+  const canProceed = () => {
+    if (currentQuestion.type === 'text') {
+      return textInput.trim().length > 0;
+    }
+    return selectedOptions.length > 0;
   };
 
   return (
     <div className="h-screen weather-gradient flex flex-col">
-      {/* Header */}
-      <div className="px-6 py-4 border-b border-border glass-effect">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Avatar className="w-10 h-10">
-              <AvatarFallback className="bg-primary text-primary-foreground">
-                <Bot size={20} />
-              </AvatarFallback>
-            </Avatar>
-            <div>
-              <h1 className="font-medium">Asistente de Configuración</h1>
-              <p className="text-sm text-muted-foreground">Te ayudo a configurar tu perfil</p>
-            </div>
+      {/* Header con progreso */}
+      <div className="px-6 py-6 glass-effect border-b border-border">
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h1 className="text-xl font-medium">RAINAPSE</h1>
+            <Badge variant="secondary" className="text-xs">
+              {currentStep + 1} de {QUESTIONS.length}
+            </Badge>
           </div>
           
-          {/* Voice/Chat toggle */}
-          <div className="flex items-center gap-2">
-            <MessageCircle size={16} className={!isVoiceMode ? 'text-primary' : 'text-muted-foreground'} />
-            <Switch
-              checked={isVoiceMode}
-              onCheckedChange={setIsVoiceMode}
-              className="data-[state=checked]:bg-primary"
-            />
-            <Mic size={16} className={isVoiceMode ? 'text-primary' : 'text-muted-foreground'} />
+          <div className="space-y-2">
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">{currentQuestion.section}</span>
+              <span className="text-muted-foreground">{Math.round(progress)}%</span>
+            </div>
+            <Progress value={progress} className="h-2" />
           </div>
         </div>
-        
-        {isVoiceMode && (
-          <div className="mt-2 text-xs text-muted-foreground text-center">
-            🎙️ Conversación por voz - El asistente hablará y activará el micrófono automáticamente
-          </div>
-        )}
       </div>
 
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-6 py-4">
-        <div className="space-y-4 mb-4">
-          {messages.map((message) => (
-            <div
-              key={message.id}
-              className={`flex gap-3 ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
-            >
-              {message.sender === 'bot' && (
-                <Avatar className="w-8 h-8 flex-shrink-0">
-                  <AvatarFallback className="bg-primary text-primary-foreground">
-                    <Bot size={16} />
-                  </AvatarFallback>
-                </Avatar>
-              )}
+      {/* Contenido principal */}
+      <div className="flex-1 px-6 py-8 overflow-y-auto">
+        <div className="max-w-md mx-auto space-y-8">
+          {/* Pregunta */}
+          <div className="space-y-3">
+            <h2 className="text-2xl font-medium leading-tight">
+              {currentQuestion.title}
+            </h2>
+            <p className="text-muted-foreground leading-relaxed">
+              {currentQuestion.description}
+            </p>
+          </div>
+
+          {/* Input de texto */}
+          {currentQuestion.type === 'text' && (
+            <div className="space-y-4">
+              <Input
+                value={textInput}
+                onChange={(e) => setTextInput(e.target.value)}
+                placeholder="Escribe tu respuesta..."
+                className="h-12 rounded-xl glass-effect border-0 text-base"
+                onKeyPress={(e) => e.key === 'Enter' && canProceed() && handleNext()}
+              />
+            </div>
+          )}
+
+          {/* Opciones de selección */}
+          {(currentQuestion.type === 'select' || currentQuestion.type === 'multiselect') && (
+            <div className="space-y-3">
+              {currentQuestion.options?.map((option, index) => (
+                <button
+                  key={index}
+                  onClick={() => handleOptionToggle(option)}
+                  className={`w-full p-4 rounded-xl text-left transition-all ${
+                    selectedOptions.includes(option)
+                      ? 'bg-primary text-primary-foreground shadow-md'
+                      : 'glass-effect hover:bg-accent/50'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-base">{option}</span>
+                    {selectedOptions.includes(option) && (
+                      <div className="w-5 h-5 rounded-full bg-primary-foreground/20 flex items-center justify-center">
+                        <div className="w-2 h-2 rounded-full bg-primary-foreground"></div>
+                      </div>
+                    )}
+                  </div>
+                </button>
+              ))}
               
-              <div
-                className={`max-w-[80%] rounded-2xl px-4 py-3 ${
-                  message.sender === 'user'
-                    ? 'bg-primary text-primary-foreground ml-auto'
-                    : 'glass-effect border-0'
-                }`}
-              >
-                <p className="text-sm">{message.text}</p>
-              </div>
-
-              {message.sender === 'user' && (
-                <Avatar className="w-8 h-8 flex-shrink-0">
-                  <AvatarFallback className="bg-accent text-accent-foreground">
-                    <User size={16} />
-                  </AvatarFallback>
-                </Avatar>
-              )}
-            </div>
-          ))}
-
-          {isTyping && (
-            <div className="flex gap-3 justify-start">
-              <Avatar className="w-8 h-8 flex-shrink-0">
-                <AvatarFallback className="bg-primary text-primary-foreground">
-                  <Bot size={16} />
-                </AvatarFallback>
-              </Avatar>
-              <div className="glass-effect border-0 rounded-2xl px-4 py-3">
-                <div className="flex gap-1">
-                  <div className="w-2 h-2 bg-primary rounded-full animate-pulse"></div>
-                  <div className="w-2 h-2 bg-primary rounded-full animate-pulse delay-100"></div>
-                  <div className="w-2 h-2 bg-primary rounded-full animate-pulse delay-200"></div>
+              {currentQuestion.type === 'multiselect' && selectedOptions.length > 0 && (
+                <div className="mt-4 p-3 glass-effect rounded-xl">
+                  <p className="text-sm text-muted-foreground mb-2">Seleccionado:</p>
+                  <div className="flex flex-wrap gap-2">
+                    {selectedOptions.map((option, index) => (
+                      <Badge key={index} variant="secondary" className="text-xs">
+                        {option}
+                      </Badge>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           )}
         </div>
-        <div ref={messagesEndRef} />
       </div>
 
-      {/* Input */}
-      <div className="px-6 py-4 border-t border-border glass-effect">
-        <div className="flex gap-3">
-          <Input
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyPress={handleKeyPress}
-            placeholder={isVoiceMode ? "Toca el micrófono para hablar..." : "Escribe tu respuesta..."}
-            className="flex-1 rounded-full glass-effect border-0"
-            disabled={isTyping || isListening}
-          />
-          
-          {isVoiceMode && (
-            <Button
-              onClick={startListening}
-              disabled={isTyping || isListening}
-              size="icon"
-              className={`rounded-full flex-shrink-0 ${
-                isListening ? 'bg-destructive hover:bg-destructive/90' : 'bg-primary hover:bg-primary/90'
-              }`}
-            >
-              {isListening ? <MicOff size={16} /> : <Mic size={16} />}
-            </Button>
-          )}
+      {/* Botones de navegación */}
+      <div className="px-6 py-6 glass-effect border-t border-border">
+        <div className="flex gap-3 max-w-md mx-auto">
+          <Button
+            variant="outline"
+            onClick={handlePrevious}
+            disabled={currentStep === 0}
+            className="flex-1 h-12 rounded-xl"
+          >
+            <ChevronLeft size={16} className="mr-2" />
+            Anterior
+          </Button>
           
           <Button
-            onClick={handleSubmit}
-            disabled={!input.trim() || isTyping}
-            size="icon"
-            className="rounded-full flex-shrink-0 bg-primary hover:bg-primary/90"
+            onClick={handleNext}
+            disabled={!canProceed()}
+            className="flex-1 h-12 rounded-xl"
           >
-            <Send size={16} />
+            {currentStep === QUESTIONS.length - 1 ? 'Finalizar' : 'Siguiente'}
+            {currentStep < QUESTIONS.length - 1 && (
+              <ChevronRight size={16} className="ml-2" />
+            )}
           </Button>
         </div>
-        
-        {isListening && (
-          <div className="mt-3 text-center">
-            <div className="inline-flex items-center gap-2 text-sm text-destructive">
-              <div className="w-2 h-2 bg-destructive rounded-full animate-pulse" />
-              Escuchando...
-            </div>
-          </div>
-        )}
       </div>
 
-      {/* Progress indicator */}
-      <div className="px-6 py-2">
-        <div className="w-full bg-muted rounded-full h-1">
-          <div
-            className="bg-primary h-1 rounded-full transition-all duration-300"
-            style={{ width: `${(currentStep / (questions.length - 1)) * 100}%` }}
-          />
-        </div>
-        <p className="text-xs text-muted-foreground text-center mt-1">
-          Paso {currentStep + 1} de {questions.length}
-        </p>
-      </div>
+      {/* Chatbot flotante */}
+      <FloatingChatbot />
     </div>
   );
+}
+
+export function OnboardingChatbot({ onComplete }: OnboardingChatbotProps) {
+  const [currentView, setCurrentView] = useState<'welcome' | 'survey'>('welcome');
+
+  const handleStart = () => {
+    setCurrentView('survey');
+  };
+
+  const handleSurveyComplete = (profile: UserProfile) => {
+    onComplete(profile);
+  };
+
+  if (currentView === 'welcome') {
+    return <WelcomeScreen onStart={handleStart} />;
+  }
+
+  return <SurveyScreen onComplete={handleSurveyComplete} />;
 }

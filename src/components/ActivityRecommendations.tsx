@@ -24,9 +24,11 @@ interface ActivityRecommendationsProps {
     windSpeed: number;
   };
   userProfile?: {
-    activityLevel: string;
-    goals: string[];
-  };
+    climateInfluence: string;
+    outdoorActivities: string[];
+    healthConditions: string[];
+    favoriteClimate: string;
+  } | null;
 }
 
 export function ActivityRecommendations({ currentWeather, userProfile }: ActivityRecommendationsProps) {
@@ -126,15 +128,20 @@ export function ActivityRecommendations({ currentWeather, userProfile }: Activit
       }
 
       // Ajustar según perfil del usuario
-      if (userProfile?.activityLevel === 'muy activo' && activity.category === 'exercise') {
+      if (userProfile?.climateInfluence === 'Mucho, suelo adaptar mis planes' && activity.category === 'exercise') {
         score += 15;
-      } else if (userProfile?.activityLevel === 'sedentario' && activity.category === 'leisure') {
+      } else if (userProfile?.climateInfluence === 'Poco o nada' && activity.category === 'leisure') {
         score += 10;
       }
 
-      // Ajustar por objetivos
-      if (userProfile?.goals?.includes('perder peso') && activity.category === 'exercise') {
+      // Ajustar por actividades preferidas
+      if (userProfile?.outdoorActivities?.includes('Ejercicio físico o deportes') && activity.category === 'exercise') {
         score += 20;
+      }
+
+      // Considerar condiciones de salud
+      if (userProfile?.healthConditions?.includes('Asma o EPOC') && activity.category === 'indoor') {
+        score += 15;
       }
 
       return {

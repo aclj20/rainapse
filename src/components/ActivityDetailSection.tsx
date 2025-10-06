@@ -4,6 +4,7 @@ import { Activity } from './ActivityCard';
 import { Separator } from './ui/separator';
 import { WeatherActivityCard } from './WeatherActivityCard';
 import { WeatherHeatMap } from './WeatherHeatMap';
+import { UnfavorableWeatherSection } from './UnfavorableWeatherSection';
 
 interface ActivityDetailSectionProps {
   activity: Activity;
@@ -12,19 +13,24 @@ interface ActivityDetailSectionProps {
 
 export function ActivityDetailSection({ activity, onBack }: ActivityDetailSectionProps) {
   const handleEdit = () => {
-    // Aquí implementarías la funcionalidad de edición
-    console.log('Editar actividad:', activity.id);
+    // Here you would implement edit functionality
+    console.log('Edit activity:', activity.id);
   };
 
   const handleDelete = () => {
-    // Aquí implementarías la funcionalidad de eliminación
-    console.log('Eliminar actividad:', activity.id);
+    // Here you would implement delete functionality
+    console.log('Delete activity:', activity.id);
   };
 
   const handleComplete = () => {
-    // Aquí implementarías marcar como completada
-    console.log('Marcar como completada:', activity.id);
+    // Here you would implement mark as completed
+    console.log('Mark as completed:', activity.id);
   };
+
+  // Simulate unfavorable weather conditions for running
+  const isRunningActivity = activity.title.toLowerCase().includes('run') || activity.title.toLowerCase().includes('running');
+  const isCloudyWeather = true; // Simulate cloudy weather
+  const showUnfavorableWeather = isRunningActivity && isCloudyWeather;
 
   return (
     <div className="flex flex-col h-full weather-gradient">
@@ -94,7 +100,7 @@ export function ActivityDetailSection({ activity, onBack }: ActivityDetailSectio
               <MapPin size={20} className="text-muted-foreground" />
               <div>
                 <p className="font-medium">{activity.location}</p>
-                <p className="text-sm text-muted-foreground">Ubicación</p>
+                <p className="text-sm text-muted-foreground">Location</p>
               </div>
             </div>
           )}
@@ -102,9 +108,9 @@ export function ActivityDetailSection({ activity, onBack }: ActivityDetailSectio
           <div className="flex items-center gap-3">
             <Calendar size={20} className="text-muted-foreground" />
             <div>
-              <p className="font-medium">Hoy</p>
+              <p className="font-medium">Today</p>
               <p className="text-sm text-muted-foreground">
-                {new Date().toLocaleDateString('es-ES', { 
+                {new Date().toLocaleDateString('en-US', { 
                   day: 'numeric', 
                   month: 'long', 
                   year: 'numeric' 
@@ -118,32 +124,41 @@ export function ActivityDetailSection({ activity, onBack }: ActivityDetailSectio
 
         {/* Weather Information */}
         <div className="space-y-4 mb-6">
-          <WeatherActivityCard 
-            activity={{
-              title: activity.title,
-              date: new Date()
-            }}
-            weather={{
-              temperature: 24,
-              humidity: 65,
-              windSpeed: 12,
-              condition: 'partly-cloudy',
-              uvIndex: 6,
-              precipitation: 10
-            }}
-          />
-          
-          <WeatherHeatMap 
-            activityType={activity.title}
-            currentDate={new Date()}
-          />
+          {showUnfavorableWeather ? (
+            <UnfavorableWeatherSection 
+              activityTime={activity.time} 
+              activityTitle={activity.title}
+            />
+          ) : (
+            <>
+              <WeatherActivityCard 
+                activity={{
+                  title: activity.title,
+                  date: new Date()
+                }}
+                weather={{
+                  temperature: 24,
+                  humidity: 65,
+                  windSpeed: 12,
+                  condition: 'partly-cloudy',
+                  uvIndex: 6,
+                  precipitation: 10
+                }}
+              />
+              
+              <WeatherHeatMap 
+                activityType={activity.title}
+                currentDate={new Date()}
+              />
+            </>
+          )}
         </div>
 
         {/* Additional info */}
         <div className="glass-effect rounded-lg p-4">
-          <h3 className="font-medium mb-2">Notas adicionales</h3>
+          <h3 className="font-medium mb-2">Additional notes</h3>
           <p className="text-sm text-muted-foreground">
-            {activity.description || 'Sin notas adicionales para esta actividad.'}
+            {activity.description || 'No additional notes for this activity.'}
           </p>
         </div>
       </div>
@@ -151,10 +166,10 @@ export function ActivityDetailSection({ activity, onBack }: ActivityDetailSectio
       {/* Action buttons */}
       <div className="px-6 pb-6 space-y-3">
         <Button onClick={handleComplete} className="w-full rounded-full bg-primary hover:bg-primary/90">
-          Marcar como completada
+          Mark as completed
         </Button>
         <Button onClick={handleEdit} variant="outline" className="w-full rounded-full glass-effect border-0 hover:bg-white/20">
-          Editar actividad
+          Edit activity
         </Button>
       </div>
     </div>
