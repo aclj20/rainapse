@@ -1,7 +1,7 @@
 # RAINAPSE
+![alt text](<rainapse.jpg>)
 
 Rainapse is an mobile application that helps users plan outdoor activities based on weather conditions, offering a personalized and interactive experience through the following features:
-![alt text](<rainapse.jpg>)
 - **Personalized Profile:** Users provide information about their health, weather preferences, and favorite activities to tailor recommendations.
 - **Location and Date Selection:** Choose a location and a specific day, week, or date range for planned activities.
 - **Advanced Weather Prediction:** The system combines historical data from NASA to generate accurate, user-specific forecasts.
